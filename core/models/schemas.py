@@ -4,21 +4,13 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-try:  # Pydantic v2
-    from pydantic import BaseModel, ConfigDict
-except ImportError:  # pragma: no cover - compatibility fallback
-    from pydantic import BaseModel  # type: ignore
-    ConfigDict = None
+from pydantic import BaseModel, ConfigDict
 
 
 class ORMModel(BaseModel):
     """Base schema enabling ORM compatibility for Pydantic v1 and v2."""
 
-    if ConfigDict is not None:
-        model_config = ConfigDict(from_attributes=True)
-    else:  # pragma: no cover - executed on Pydantic v1
-        class Config:
-            orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StoreSchema(ORMModel):
