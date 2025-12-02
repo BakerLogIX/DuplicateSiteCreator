@@ -29,6 +29,15 @@ class BaseRepository(Generic[ModelType]):
         self.db = db
 
     def get(self, obj_id: int) -> Optional[ModelType]:
+        """Retrieve an object by its primary key.
+
+        Deprecated alias for :meth:`get_by_id` kept for compatibility with
+        earlier tests. Prefer :meth:`get_by_id` in new code.
+        """
+
+        return self.get_by_id(obj_id)
+
+    def get_by_id(self, obj_id: int) -> Optional[ModelType]:
         """Retrieve an object by its primary key."""
 
         return self.db.get(self.model, obj_id)

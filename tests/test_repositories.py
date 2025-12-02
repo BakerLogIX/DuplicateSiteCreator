@@ -50,7 +50,7 @@ def test_product_crud_and_store_isolation(db_session: Session) -> None:
         store_id=store_b.id, name="Product B1", price=Decimal("29.99"), currency="USD"
     )
 
-    assert product_repo.get(prod_a1.id).name == "Product A1"
+    assert product_repo.get_by_id(prod_a1.id).name == "Product A1"
 
     updated = product_repo.update(prod_a1, name="Product A1 Updated")
     assert updated.name == "Product A1 Updated"
@@ -60,7 +60,7 @@ def test_product_crud_and_store_isolation(db_session: Session) -> None:
     assert {p.id for p in product_repo.get_by_store(store_b.id)} == {prod_b1.id}
 
     product_repo.delete(prod_b1)
-    assert product_repo.get(prod_b1.id) is None
+    assert product_repo.get_by_id(prod_b1.id) is None
 
 
 def test_variant_and_supplier_relationships(db_session: Session) -> None:
