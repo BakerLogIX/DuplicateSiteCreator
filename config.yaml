@@ -1,0 +1,10 @@
+database:
+  url: sqlite:///./duplicate_site.db
+
+pricing:
+  default_currency: USD
+  default_margin: 0.2
+
+logging:
+  level: INFO
+  format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
