@@ -1,14 +1,13 @@
-"""Pydantic schemas mirroring SQLAlchemy models."""
+"""Pydantic-style schemas for core entities."""
 from __future__ import annotations
 
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
-
 try:  # Pydantic v2
-    from pydantic import ConfigDict
+    from pydantic import BaseModel, ConfigDict
 except ImportError:  # pragma: no cover - compatibility fallback
+    from pydantic import BaseModel  # type: ignore
     ConfigDict = None
 
 

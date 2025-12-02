@@ -1,13 +1,25 @@
-"""Tiny YAML loader to support config parsing without external deps."""
+"""Tiny YAML loader used when PyYAML is unavailable."""
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Union, IO
+from typing import Any, Dict, IO, List, Union
 
 
 def safe_load(stream: Union[str, IO[str]]) -> Dict[str, Any]:
+    """Parse a minimal subset of YAML into a Python dict.
+
+    The parser supports nested dictionaries defined by two-space indentation,
+    integer and float scalars, and string values. Comment-only and blank lines
+    are ignored to keep project configuration readable without external
+    dependencies.
+    """
+
     raw = stream.read() if hasattr(stream, "read") else str(stream)
-    lines = [line.rstrip() for line in raw.splitlines() if line.strip() and not line.strip().startswith("#")]
+    lines = [
+        line.rstrip()
+        for line in raw.splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
     root: Dict[str, Any] = {}
     stack: List[Dict[str, Any]] = [root]
     indents = [0]
@@ -26,9 +38,9 @@ def safe_load(stream: Union[str, IO[str]]) -> Dict[str, Any]:
         if value:
             current[key] = _parse_value(value)
         else:
-            new_dict: Dict[str, Any] = {}
-            current[key] = new_dict
-            stack.append(new_dict)
+            nested: Dict[str, Any] = {}
+            current[key] = nested
+            stack.append(nested)
             indents.append(indent + 2)
 
     return root

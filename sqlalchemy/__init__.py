@@ -1,9 +1,10 @@
-"""Lightweight SQLAlchemy-compatible stubs for offline testing.
+"""Lightweight SQLAlchemy-like stubs for offline execution.
 
-This module implements a very small subset of SQLAlchemy's ORM API so the
-project can run in environments without the real dependency. It is *not*
-a drop-in replacement, but it models enough behaviour for the repository
-unit tests that exercise basic CRUD flows.
+These classes implement only the small subset of behaviour exercised by the
+repository unit tests. They mimic core ORM concepts such as declarative models,
+sessions, queries, and columns backed by an in-memory store. The goal is to
+keep the project runnable without external dependencies when network access is
+restricted.
 """
 from __future__ import annotations
 
@@ -87,9 +88,9 @@ class Column:
         return self.default
 
 
-def relationship(*_args: Any, **_kwargs: Any) -> None:
-    """Relationship placeholder; not used in the simplified stub."""
+# Relationship stub: the tests rely only on attribute presence, not behaviour
 
+def relationship(*_args: Any, **_kwargs: Any) -> None:
     return None
 
 
@@ -97,9 +98,7 @@ def relationship(*_args: Any, **_kwargs: Any) -> None:
 class _MetaData:
     registry: List[Type[Any]]
 
-    def create_all(self, bind: "Engine") -> None:  # noqa: D401
-        """Initialise storage for all registered models on the engine."""
-
+    def create_all(self, bind: "Engine") -> None:
         for model in self.registry:
             bind._ensure_model(model)
 
@@ -190,10 +189,10 @@ class Session:
         if obj not in objects:
             objects.append(obj)
 
-    def commit(self) -> None:  # pragma: no cover - included for API parity
+    def commit(self) -> None:  # pragma: no cover - API parity
         return None
 
-    def refresh(self, obj: Any) -> None:  # pragma: no cover
+    def refresh(self, obj: Any) -> None:  # pragma: no cover - API parity
         return None
 
     def delete(self, obj: Any) -> None:
@@ -209,7 +208,7 @@ class Session:
                 return item
         return None
 
-    def close(self) -> None:  # pragma: no cover
+    def close(self) -> None:  # pragma: no cover - API parity
         return None
 
 
