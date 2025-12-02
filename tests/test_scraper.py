@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from pathlib import Path
 from typing import Dict, Generator
 
 import pytest
@@ -14,42 +15,10 @@ from core.scraper import detectors, extract_product_data, link_utils, run_scrape
 from core.scraper.request_manager import RequestManager
 
 
-PRODUCT_HTML = """
-<html>
-  <head>
-    <title>Test Product</title>
-    <meta itemprop="priceCurrency" content="USD" />
-  </head>
-  <body>
-    <nav class="breadcrumb"><li>Home</li><li>Gadgets</li></nav>
-    <h1 class="product-title">Sample Product</h1>
-    <div class="product-price">$19.99</div>
-    <p class="description">A compact gadget that does many things.</p>
-    <div class="sku">SKU: ABC123</div>
-    <img src="/images/prod1.jpg" alt="Front" />
-    <img data-src="/images/prod1-side.jpg" alt="Side" />
-    <button>Add to Cart</button>
-  </body>
-</html>
-"""
-
-CATEGORY_HTML = """
-<html>
-  <body>
-    <h1>Gadgets Category</h1>
-    <div class="product-card"><a href="/product-a.html">Product A</a></div>
-    <div class="product-card"><a href="https://other.com/ignore">External</a></div>
-  </body>
-</html>
-"""
-
-START_HTML = """
-<html>
-  <body>
-    <a href="/category.html">Browse gadgets</a>
-  </body>
-</html>
-"""
+FIXTURES = Path(__file__).parent / "fixtures" / "scraper"
+PRODUCT_HTML = (FIXTURES / "product.html").read_text()
+CATEGORY_HTML = (FIXTURES / "category.html").read_text()
+START_HTML = (FIXTURES / "start.html").read_text()
 
 
 class FakeRequestManager(RequestManager):
