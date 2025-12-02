@@ -1,0 +1,13 @@
+# Base configuration for Duplicate Site Creator
+app:
+  name: "Duplicate Site Creator"
+  default_currency: "USD"
+  timezone: "UTC"
+
+database:
+  url: "sqlite:///./data/app.db"
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  datefmt: "%Y-%m-%d %H:%M:%S"
