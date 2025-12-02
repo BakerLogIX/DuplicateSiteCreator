@@ -1,40 +1,46 @@
-"""Lightweight YAML loader stub for environments without PyYAML.
-
-This parser only supports a small subset of YAML used by the project's
-configuration file (nested dictionaries with scalar string values).
-"""
+"""Tiny YAML loader to support config parsing without external deps."""
 from __future__ import annotations
 
-from typing import Dict
+import re
+from typing import Any, Dict, List, Union, IO
 
 
-def _strip_quotes(value: str) -> str:
-    if value.startswith("\"") and value.endswith("\""):
-        return value[1:-1]
-    if value.startswith("'") and value.endswith("'"):
-        return value[1:-1]
-    return value
+def safe_load(stream: Union[str, IO[str]]) -> Dict[str, Any]:
+    raw = stream.read() if hasattr(stream, "read") else str(stream)
+    lines = [line.rstrip() for line in raw.splitlines() if line.strip() and not line.strip().startswith("#")]
+    root: Dict[str, Any] = {}
+    stack: List[Dict[str, Any]] = [root]
+    indents = [0]
 
-
-def safe_load(stream: str | object) -> Dict[str, object]:
-    config: Dict[str, object] = {}
-    current_section: str | None = None
-
-    content = stream.read() if hasattr(stream, "read") else str(stream)
-
-    for line in content.splitlines():
-        if not line.strip() or line.lstrip().startswith("#"):
-            continue
+    for line in lines:
         indent = len(line) - len(line.lstrip(" "))
-        key, _, raw_value = line.strip().partition(":")
-        value = raw_value.strip()
-        if indent == 0:
-            current_section = key
-            if value:
-                config[current_section] = _strip_quotes(value)
-            else:
-                config[current_section] = {}
-        elif indent >= 2 and current_section:
-            section = config.setdefault(current_section, {})
-            section[key] = _strip_quotes(value)
-    return config
+        key, _, value = line.lstrip().partition(":")
+        key = key.strip()
+        value = value.strip().strip('"')
+
+        while indent < indents[-1]:
+            stack.pop()
+            indents.pop()
+
+        current = stack[-1]
+        if value:
+            current[key] = _parse_value(value)
+        else:
+            new_dict: Dict[str, Any] = {}
+            current[key] = new_dict
+            stack.append(new_dict)
+            indents.append(indent + 2)
+
+    return root
+
+
+def _parse_value(value: str) -> Any:
+    if re.fullmatch(r"-?\d+", value):
+        return int(value)
+    try:
+        return float(value)
+    except ValueError:
+        return value
+
+
+__all__ = ["safe_load"]
