@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ category_name }} - {{ store.name }}</title>
+</head>
+<body>
+  <header>
+    <h1>{{ store.name }}</h1>
+  </header>
+  <main>
+    <section id="category">
+      <h2>{{ category_name }}</h2>
+      <ul>
+      {% for product in products %}
+        <li>
+          <a href="product-{{ product.id }}.html">{{ product.name }}</a>
+          <span class="price">{{ product.price }} {{ product.currency }}</span>
+        </li>
+      {% endfor %}
+      </ul>
+    </section>
+  </main>
+</body>
+</html>

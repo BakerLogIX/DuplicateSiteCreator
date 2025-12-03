@@ -42,6 +42,9 @@ class Product(Base):
     price = Column(Numeric(10, 2), nullable=False, default=0)
     currency = Column(String(3), nullable=False, default="USD")
     category = Column(String(100), nullable=True)
+    supplier_price = Column(Numeric(10, 2), nullable=True)
+    inventory_count = Column(Integer, nullable=False, default=0)
+    pricing_outdated = Column(Boolean, nullable=False, default=False)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -111,6 +114,8 @@ class Order(Base):
     currency = Column(String(3), nullable=False, default="USD")
     customer_name = Column(String(255), nullable=True)
     customer_email = Column(String(255), nullable=True)
+    tracking_number = Column(String(100), nullable=True)
+    status_message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -132,6 +137,8 @@ class OrderItem(Base):
     quantity = Column(Integer, nullable=False, default=1)
     unit_price = Column(Numeric(10, 2), nullable=False, default=0)
     total_price = Column(Numeric(10, 2), nullable=False, default=0)
+    status = Column(String(50), nullable=False, default="pending")
+    tracking_number = Column(String(100), nullable=True)
 
     order = relationship("Order", back_populates="items")
     product = relationship("Product", back_populates="order_items")

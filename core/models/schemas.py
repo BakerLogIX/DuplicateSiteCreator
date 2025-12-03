@@ -33,6 +33,9 @@ class ProductSchema(ORMModel):
     price: float
     currency: str = "USD"
     category: Optional[str] = None
+    supplier_price: Optional[float] = None
+    inventory_count: int = 0
+    pricing_outdated: bool = False
     is_active: bool = True
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
@@ -73,6 +76,8 @@ class OrderSchema(ORMModel):
     currency: str = "USD"
     customer_name: Optional[str] = None
     customer_email: Optional[str] = None
+    tracking_number: Optional[str] = None
+    status_message: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -86,6 +91,8 @@ class OrderItemSchema(ORMModel):
     quantity: int = 1
     unit_price: float
     total_price: float
+    status: str = "pending"
+    tracking_number: Optional[str] = None
 
 
 class TransactionSchema(ORMModel):

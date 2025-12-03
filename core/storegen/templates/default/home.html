@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ store.name }} - Home</title>
+</head>
+<body>
+  <header>
+    <h1>{{ store.name }}</h1>
+    <p>Theme: {{ store.theme }}</p>
+  </header>
+  <main>
+    <section id="hero">
+      <h2>{{ store.name }} catalog</h2>
+      <p>Browse our curated categories.</p>
+    </section>
+    <section id="categories">
+      <h3>Categories</h3>
+      <ul>
+      {% for category in categories %}
+        <li><a href="category-{{ category.slug }}.html">{{ category.name }}</a> ({{ category.count }} products)</li>
+      {% endfor %}
+      </ul>
+    </section>
+    <section id="products">
+      <h3>All Products</h3>
+      <ul>
+      {% for product in products %}
+        <li>
+          <a href="product-{{ product.id }}.html">{{ product.name }}</a>
+          <span class="price">{{ product.price }} {{ product.currency }}</span>
+        </li>
+      {% endfor %}
+      </ul>
+    </section>
+  </main>
+</body>
+</html>

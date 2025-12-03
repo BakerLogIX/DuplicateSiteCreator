@@ -5,6 +5,7 @@ from typing import Generic, List, Optional, Type, TypeVar
 
 from sqlalchemy.orm import Session
 
+from core.db.base import Base
 from core.models.entities import (
     Image,
     Order,
@@ -17,7 +18,20 @@ from core.models.entities import (
     Variant,
 )
 
-ModelType = TypeVar("ModelType")
+ModelType = TypeVar("ModelType", bound=Base)
+
+__all__ = [
+    "BaseRepository",
+    "StoreRepository",
+    "ProductRepository",
+    "VariantRepository",
+    "ImageRepository",
+    "SupplierRepository",
+    "OrderRepository",
+    "OrderItemRepository",
+    "TransactionRepository",
+    "PriceRuleRepository",
+]
 
 
 class BaseRepository(Generic[ModelType]):
@@ -125,13 +139,11 @@ class SupplierRepository(BaseRepository[Supplier]):
     def get_by_store(self, store_id: int) -> List[Supplier]:
         return list(self.db.query(self.model).filter_by(store_id=store_id).all())
 
-    def get_active_suppliers(self, store_id: int) -> List[Supplier]:
-        return list(
-            self.db.query(self.model)
-            .filter_by(store_id=store_id, active=True)
-            .order_by(self.model.id)
-            .all()
-        )
+    def get_active_suppliers(self, store_id: Optional[int] = None) -> List[Supplier]:
+        query = self.db.query(self.model).filter_by(active=True)
+        if store_id is not None:
+            query = query.filter_by(store_id=store_id)
+        return list(query.order_by(self.model.id).all())
 
 
 class OrderRepository(BaseRepository[Order]):

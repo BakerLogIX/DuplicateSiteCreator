@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ product.name }} - {{ store.name }}</title>
+</head>
+<body>
+  <header>
+    <h1>{{ store.name }}</h1>
+  </header>
+  <main>
+    <article id="product">
+      <h2>{{ product.name }}</h2>
+      <p class="price">{{ product.price }} {{ product.currency }}</p>
+      {% if product.category %}
+      <p class="category">Category: {{ product.category }}</p>
+      {% endif %}
+      {% if product.description %}
+      <p class="description">{{ product.description }}</p>
+      {% endif %}
+    </article>
+  </main>
+</body>
+</html>

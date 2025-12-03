@@ -40,11 +40,20 @@ def test_product_crud_and_store_isolation(db_session: Session) -> None:
     store_a = store_repo.create(name="Store A", theme="default", payment_provider=None)
     store_b = store_repo.create(name="Store B", theme="default", payment_provider=None)
 
+    assert store_repo.get_by_name("Store A") == store_a
+
     prod_a1 = product_repo.create(
         store_id=store_a.id,
         name="Product A1",
         price=Decimal("19.99"),
         currency="USD",
+    )
+    prod_a2 = product_repo.create(
+        store_id=store_a.id,
+        name="Product A2",
+        price=Decimal("25.00"),
+        currency="USD",
+        is_active=False,
     )
     prod_b1 = product_repo.create(
         store_id=store_b.id, name="Product B1", price=Decimal("29.99"), currency="USD"
@@ -56,8 +65,14 @@ def test_product_crud_and_store_isolation(db_session: Session) -> None:
     assert updated.name == "Product A1 Updated"
 
     store_a_products = product_repo.get_by_store(store_a.id)
-    assert {p.id for p in store_a_products} == {prod_a1.id}
+    assert {p.id for p in store_a_products} == {prod_a1.id, prod_a2.id}
     assert {p.id for p in product_repo.get_by_store(store_b.id)} == {prod_b1.id}
+
+    active_store_a_products = product_repo.get_active_by_store(store_a.id)
+    assert [p.id for p in active_store_a_products] == [prod_a1.id]
+
+    all_products = product_repo.get_all()
+    assert {p.id for p in all_products} == {prod_a1.id, prod_a2.id, prod_b1.id}
 
     product_repo.delete(prod_b1)
     assert product_repo.get_by_id(prod_b1.id) is None
@@ -79,12 +94,17 @@ def test_variant_and_supplier_relationships(db_session: Session) -> None:
         supplier_repo.create(store_id=store.id, name="Supplier 1"),
         supplier_repo.create(store_id=store.id, name="Supplier 2", active=False),
     ]
+    other_store = store_repo.create(name="Store B", theme="default", payment_provider=None)
+    supplier_repo.create(store_id=other_store.id, name="Supplier 3")
 
     variants = variant_repo.get_by_product(product.id)
     assert {v.name for v in variants} == {"Red", "Blue"}
 
     active_suppliers = supplier_repo.get_active_suppliers(store.id)
     assert [s.name for s in active_suppliers] == [suppliers[0].name]
+
+    suppliers_for_store = supplier_repo.get_by_store(store.id)
+    assert {s.name for s in suppliers_for_store} == {"Supplier 1", "Supplier 2"}
 
 
 
@@ -99,6 +119,7 @@ def test_orders_and_transactions(db_session: Session) -> None:
     product = product_repo.create(store_id=store.id, name="Product", price=50, currency="USD")
 
     order = order_repo.create(store_id=store.id, total_amount=50, currency="USD")
+    _ = order_repo.create(store_id=store.id, total_amount=75, currency="USD", status="complete")
     order_item_repo.create(
         order_id=order.id,
         product_id=product.id,
@@ -155,3 +176,6 @@ def test_price_rules(db_session: Session) -> None:
 
     active_rules = price_rule_repo.get_active_rules(store.id)
     assert [r.name for r in active_rules] == ["Margin 10%"]
+
+    active_all_stores = price_rule_repo.get_active_rules()
+    assert [r.id for r in active_all_stores] == [rule_active.id]
