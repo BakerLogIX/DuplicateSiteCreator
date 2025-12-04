@@ -51,5 +51,11 @@ class OrdersView(ttk.Frame):
                 values=(order.id, order.status, getattr(order, "customer_email", ""), order.total),
             )
 
+    def set_store(self, store_id: Optional[int]) -> None:
+        """Change the current store and refresh the order list."""
+
+        self.store_id = store_id
+        self.refresh()
+
 
 __all__ = ["OrdersView"]

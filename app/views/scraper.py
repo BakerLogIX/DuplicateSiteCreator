@@ -67,5 +67,11 @@ class ScraperView(ttk.Frame):
             on_error=handle_error,
         )
 
+    def set_store(self, store_id: Optional[int]) -> None:
+        """Update the target store for future scrape runs."""
+
+        self.store_id = store_id
+        self.status_var.set("Store changed. Ready to start a new scrape.")
+
 
 __all__ = ["ScraperView"]

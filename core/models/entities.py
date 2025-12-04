@@ -27,6 +27,9 @@ class Store(Base):
     price_rules = relationship("PriceRule", back_populates="store", cascade="all, delete-orphan")
     suppliers = relationship("Supplier", back_populates="store", cascade="all, delete-orphan")
     orders = relationship("Order", back_populates="store", cascade="all, delete-orphan")
+    transactions = relationship(
+        "Transaction", back_populates="store", cascade="all, delete-orphan"
+    )
 
 
 class Product(Base):
@@ -152,6 +155,7 @@ class Transaction(Base):
     __tablename__ = "transactions"
 
     id = Column(Integer, primary_key=True, index=True)
+    store_id = Column(Integer, ForeignKey("stores.id"), nullable=False, index=True)
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False, index=True)
     amount = Column(Numeric(10, 2), nullable=False, default=0)
     currency = Column(String(3), nullable=False, default="USD")
@@ -161,6 +165,7 @@ class Transaction(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     order = relationship("Order", back_populates="transactions")
+    store = relationship("Store", back_populates="transactions")
 
 
 class PriceRule(Base):

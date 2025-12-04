@@ -54,6 +54,12 @@ class PricingView(ttk.Frame):
         updated_products = self.controller.run_pricing(store_id=self.store_id)
         self._set_output(pricing_summary(updated_products))
 
+    def set_store(self, store_id: Optional[int]) -> None:
+        """Change the active store used when running pricing."""
+
+        self.store_id = store_id
+        self._set_output("Store changed. Click 'Run Pricing' to recalculate prices.")
+
     def _set_output(self, text: str) -> None:
         self.output.configure(state="normal")
         self.output.delete("1.0", tk.END)

@@ -46,5 +46,11 @@ class ProductsView(ttk.Frame):
                 "", tk.END, values=(product.name, product.sku, product.price, product.currency)
             )
 
+    def set_store(self, store_id: Optional[int]) -> None:
+        """Update the active store and refresh the listing."""
+
+        self.store_id = store_id
+        self.refresh()
+
 
 __all__ = ["ProductsView"]

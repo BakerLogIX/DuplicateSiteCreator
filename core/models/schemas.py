@@ -97,6 +97,7 @@ class OrderItemSchema(ORMModel):
 
 class TransactionSchema(ORMModel):
     id: Optional[int] = None
+    store_id: int
     order_id: int
     amount: float
     currency: str = "USD"

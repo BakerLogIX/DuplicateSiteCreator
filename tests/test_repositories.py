@@ -131,6 +131,7 @@ def test_orders_and_transactions(db_session: Session) -> None:
     )
 
     transaction_repo.create(
+        store_id=store.id,
         order_id=order.id,
         amount=50,
         currency="USD",
@@ -148,6 +149,7 @@ def test_orders_and_transactions(db_session: Session) -> None:
     transactions = transaction_repo.get_by_order(order.id)
     assert len(transactions) == 1
     assert transactions[0].amount == Decimal("50")
+    assert [t.id for t in transaction_repo.get_by_store(store.id)] == [transactions[0].id]
 
 
 

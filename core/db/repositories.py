@@ -178,6 +178,11 @@ class TransactionRepository(BaseRepository[Transaction]):
     def get_by_order(self, order_id: int) -> List[Transaction]:
         return list(self.db.query(self.model).filter_by(order_id=order_id).all())
 
+    def get_by_store(self, store_id: int) -> List[Transaction]:
+        """Return transactions associated with a specific store."""
+
+        return list(self.db.query(self.model).filter_by(store_id=store_id).all())
+
 
 class PriceRuleRepository(BaseRepository[PriceRule]):
     """Repository for PriceRule entities."""

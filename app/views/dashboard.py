@@ -39,5 +39,12 @@ class DashboardView(ttk.Frame):
         ]
         self.metrics.set("\n".join(metric_lines))
 
+    def refresh(self, store_id: Optional[int]) -> None:
+        """Fetch fresh metrics for the provided store and render them."""
+
+        self.store_id = store_id
+        summary = self.controller.get_summary(store_id=store_id)
+        self.render_summary(summary)
+
 
 __all__ = ["DashboardView"]
