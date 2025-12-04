@@ -9,6 +9,7 @@ from core.db.base import Base
 from core.db.repositories import ProductRepository, StoreRepository
 from core.pricing.demand_scoring import compute_demand_score
 from core.pricing.engine import run_pricing
+from core.pricing.ml_plugin import PricingMLPlugin
 from core.pricing.rules import DemandRule, MarginRule
 
 
@@ -94,3 +95,62 @@ def test_run_pricing_applies_margin_rules(db_session: Session) -> None:
 
     assert updated_footwear.price == Decimal("72.00")
     assert updated_accessory.price == Decimal("177.00")
+
+
+class _StubMLPlugin(PricingMLPlugin):
+    def __init__(self, margin: float, trained: bool = True) -> None:
+        self.margin = margin
+        self._trained = trained
+        self.fit_called = False
+
+    def fit(self, training_data) -> None:
+        self.fit_called = True
+        self._trained = True
+        rows = list(training_data or [])
+        if rows:
+            row = rows[0]
+            if "margin" in row:
+                self.margin = float(row["margin"])
+
+    def predict_margin(self, product) -> float:
+        return self.margin
+
+    @property
+    def trained(self) -> bool:
+        return self._trained
+
+
+def test_run_pricing_uses_ml_plugin_when_trained(db_session: Session) -> None:
+    store = StoreRepository(db_session).create(name="ML Store", theme="default", payment_provider=None)
+    product = ProductRepository(db_session).create(
+        store_id=store.id,
+        name="ML Product",
+        price=Decimal("10.00"),
+        currency="USD",
+        category="Gadgets",
+    )
+
+    plugin = _StubMLPlugin(margin=0.5, trained=True)
+    updated = run_pricing(store.id, db=db_session, ml_plugin=plugin)
+
+    assert updated[0].id == product.id
+    assert ProductRepository(db_session).get_by_id(product.id).price == Decimal("15.00")
+
+
+def test_run_pricing_trains_plugin_when_training_data_supplied(db_session: Session) -> None:
+    store = StoreRepository(db_session).create(name="ML Store 2", theme="default", payment_provider=None)
+    product = ProductRepository(db_session).create(
+        store_id=store.id,
+        name="Trainable Product",
+        price=Decimal("20.00"),
+        currency="USD",
+        category="Gadgets",
+    )
+
+    plugin = _StubMLPlugin(margin=0.0, trained=False)
+    training_rows = [{"price": 20.0, "supplier_price": 10.0, "inventory_count": 5, "margin": 0.25}]
+
+    run_pricing(store.id, db=db_session, ml_plugin=plugin, ml_training_data=training_rows)
+
+    assert plugin.fit_called is True
+    assert ProductRepository(db_session).get_by_id(product.id).price == Decimal("25.00")

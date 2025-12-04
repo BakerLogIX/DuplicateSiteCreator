@@ -10,6 +10,7 @@ from core.db.base import SessionLocal
 from core.db.repositories import PriceRuleRepository, ProductRepository, StoreRepository
 from core.logging.logger import get_logger
 from core.pricing.demand_scoring import compute_demand_score
+from core.pricing.ml_plugin import PricingMLPlugin
 from core.pricing.rules import DemandRule, MarginRule
 
 LOGGER = get_logger(__name__)
@@ -56,6 +57,8 @@ def run_pricing(
     db: Optional[Session] = None,
     margin_rules: Optional[Iterable[MarginRule]] = None,
     demand_rule: Optional[DemandRule] = None,
+    ml_plugin: Optional[PricingMLPlugin] = None,
+    ml_training_data: Optional[Iterable] = None,
 ) -> List:
     """Execute pricing for all active products in the specified store.
 
@@ -65,6 +68,8 @@ def run_pricing(
         margin_rules: Optional iterable of :class:`MarginRule` instances to override
             database-configured rules.
         demand_rule: Optional :class:`DemandRule` instance controlling demand scoring.
+        ml_plugin: Optional machine-learning plugin used to predict margins.
+        ml_training_data: Optional iterable of training rows to fit the ML plugin when supplied.
 
     Returns:
         List of updated product instances.
@@ -88,19 +93,32 @@ def run_pricing(
 
         rules_to_apply = list(margin_rules) if margin_rules else _build_margin_rules_from_db(session, store_id)
         demand_rules = demand_rule or DemandRule()
+        plugin = ml_plugin
+        if plugin and ml_training_data is not None and not plugin.trained:
+            plugin.fit(ml_training_data)
 
         updated_products = []
         for product in products:
-            demand_score = compute_demand_score(product, demand_rules)
-            rule = _select_margin_rule(product, rules_to_apply)
-            new_price = _apply_margin(Decimal(str(product.price)), rule.margin_for_score(demand_score))
+            margin_to_apply: Optional[float] = None
+
+            if plugin and plugin.trained:
+                try:
+                    margin_to_apply = plugin.predict_margin(product)
+                except Exception as exc:  # pragma: no cover - defensive path
+                    LOGGER.warning("ML plugin failed for product %s: %s", product.id, exc)
+
+            if margin_to_apply is None:
+                demand_score = compute_demand_score(product, demand_rules)
+                rule = _select_margin_rule(product, rules_to_apply)
+                margin_to_apply = rule.margin_for_score(demand_score)
+
+            new_price = _apply_margin(Decimal(str(product.price)), margin_to_apply)
             product_repo.update(product, price=new_price)
             updated_products.append(product)
             LOGGER.debug(
-                "Priced product %s with demand %.2f using margin %.2f -> %s",
+                "Priced product %s with margin %.2f -> %s",
                 product.id,
-                demand_score,
-                rule.margin_for_score(demand_score),
+                margin_to_apply,
                 new_price,
             )
 
