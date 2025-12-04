@@ -4,11 +4,12 @@ from __future__ import annotations
 import argparse
 from typing import Dict, Optional
 
-from core.config.settings import get_timezone, load_config
+from core.config.settings import get_payments_config, get_timezone, load_config
 from core.db.init_db import init_db
 from core.dropship.order_processor import start_order_processing_scheduler
 from core.inventory.sync_service import start_inventory_sync_scheduler
 from core.logging.logger import get_logger
+from core.payments.base import build_payment_gateway
 from core.store_manager import StoreManager
 
 
@@ -38,6 +39,16 @@ def bootstrap_application(
     store_manager = StoreManager()
     store = store_manager.ensure_store(default_store_name)
     store_id = store.id
+
+    payment_gateway = None
+    try:
+        payment_gateway = build_payment_gateway(store.payment_provider, get_payments_config())
+        if payment_gateway:
+            LOGGER.info(
+                "Initialised %s gateway for store id %s", store.payment_provider, store_id
+            )
+    except Exception as exc:  # pragma: no cover - defensive
+        LOGGER.warning("Failed to initialise payment gateway: %s", exc)
 
     schedulers = {}
     if enable_schedulers:
@@ -69,7 +80,12 @@ def bootstrap_application(
                 scheduler.shutdown(wait=False)
             LOGGER.info("Application closed; schedulers shut down.")
 
-    return {"store_id": store_id, "store_manager": store_manager, "schedulers": schedulers}
+    return {
+        "store_id": store_id,
+        "store_manager": store_manager,
+        "schedulers": schedulers,
+        "payment_gateway": payment_gateway,
+    }
 
 
 def _parse_args() -> argparse.Namespace:

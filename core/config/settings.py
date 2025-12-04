@@ -93,3 +93,10 @@ def get_timezone() -> str:
 
     config = load_config()
     return config.get("app", {}).get("timezone", "UTC")
+
+
+def get_payments_config() -> Dict[str, Any]:
+    """Return payment configuration settings."""
+
+    config = load_config()
+    return config.get("payments", {})
