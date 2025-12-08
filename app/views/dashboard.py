@@ -37,6 +37,10 @@ class DashboardView(ttk.Frame):
             f"Pending orders: {summary.pending_orders}",
             f"Active suppliers: {summary.active_suppliers}",
         ]
+        if summary.metrics:
+            metric_lines.append("Metrics:")
+            for key, value in summary.metrics.items():
+                metric_lines.append(f"  {key.replace('_', ' ').title()}: {value}")
         self.metrics.set("\n".join(metric_lines))
 
     def refresh(self, store_id: Optional[int]) -> None:

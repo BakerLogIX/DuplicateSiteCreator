@@ -109,8 +109,13 @@ class ProductRepository(BaseRepository[Product]):
             self.db.query(self.model).filter_by(store_id=store_id, is_active=True).all()
         )
 
-    def get_by_sku(self, sku: str) -> Optional[Product]:
-        return self.db.query(self.model).filter_by(sku=sku).first()
+    def get_by_sku(self, sku: str, store_id: Optional[int] = None) -> Optional[Product]:
+        """Return a product by SKU scoped to a store when provided."""
+
+        query = self.db.query(self.model).filter_by(sku=sku)
+        if store_id is not None:
+            query = query.filter_by(store_id=store_id)
+        return query.first()
 
 
 class VariantRepository(BaseRepository[Variant]):

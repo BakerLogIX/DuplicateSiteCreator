@@ -121,3 +121,19 @@ def test_start_inventory_sync_scheduler_registers_jobs() -> None:
     assert scheduler.started is True
     assert [job["id"] for job in scheduler.jobs] == ["sync_inventory_1", "sync_inventory_2"]
     assert all(job["func"] == sync_supplier_inventory for job in scheduler.jobs)
+
+
+def test_start_inventory_sync_scheduler_filters_suppliers_by_store(db_session: Session) -> None:
+    scheduler = DummyScheduler()
+    store_a = StoreRepository(db_session).create(name="Store A", theme="default", payment_provider=None)
+    store_b = StoreRepository(db_session).create(name="Store B", theme="default", payment_provider=None)
+
+    supplier_a = SupplierRepository(db_session).create(store_id=store_a.id, name="Supplier A")
+    SupplierRepository(db_session).create(store_id=store_b.id, name="Supplier B")
+
+    start_inventory_sync_scheduler(
+        interval_minutes=30, scheduler=scheduler, store_id=store_a.id, db=db_session
+    )
+
+    assert scheduler.started is True
+    assert [job["id"] for job in scheduler.jobs] == [f"sync_inventory_{supplier_a.id}"]

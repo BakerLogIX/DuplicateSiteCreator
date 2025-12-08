@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from core.db.base import SessionLocal
 from core.db.repositories import ProductRepository, SupplierRepository, VariantRepository
 from core.logging.logger import get_logger
+from core.metrics import get_collector
 from core.models.entities import Supplier
 
 try:  # pragma: no cover - optional dependency for scheduling
@@ -67,13 +68,19 @@ def sync_supplier_inventory(
     variant_repo = VariantRepository(db)
     fetch_inventory: InventoryFetcher = fetcher or _default_inventory_fetcher
     pricing_updates: List[int] = []
+    collector = get_collector()
 
     try:
         supplier = supplier_repo.get_by_id(supplier_id)
         if not supplier:
             raise ValueError(f"Supplier with id {supplier_id} not found")
 
-        for record in fetch_inventory(supplier):
+        store_id = supplier.store_id
+        records = list(fetch_inventory(supplier))
+        collector.increment("inventory.sync_runs", 1, store_id=store_id)
+        collector.increment("inventory.records_processed", len(records), store_id=store_id)
+
+        for record in records:
             product_id = record.get("product_id")
             variant_id = record.get("variant_id")
             quantity = record.get("quantity")
@@ -115,6 +122,7 @@ def sync_supplier_inventory(
             if product_updates:
                 product_repo.update(product, **product_updates)
 
+        collector.increment("inventory.products_flagged", len(pricing_updates), store_id=store_id)
         return pricing_updates
     finally:
         if close_session:
@@ -126,20 +134,35 @@ def start_inventory_sync_scheduler(
     supplier_ids: Optional[Iterable[int]] = None,
     scheduler: Optional["BackgroundScheduler"] = None,
     fetcher: Optional[InventoryFetcher] = None,
+    store_id: Optional[int] = None,
+    db: Optional[Session] = None,
 ) -> "BackgroundScheduler":
-    """Start periodic inventory synchronisation jobs for suppliers."""
+    """Start periodic inventory synchronisation jobs for suppliers.
+
+    If ``store_id`` is provided, only active suppliers for that store are scheduled
+    when ``supplier_ids`` is not explicitly supplied. A database session can be
+    provided to reuse caller-managed transactions.
+    """
 
     if scheduler is None and BackgroundScheduler is None:  # pragma: no cover - dependency guard
         raise ImportError("APScheduler is required to start the inventory scheduler.")
 
     scheduler = scheduler or BackgroundScheduler()
     ids = list(supplier_ids) if supplier_ids is not None else []
+    close_session = False
+    session = db
     if not ids:
-        session = SessionLocal()
+        if session is None:
+            session = SessionLocal()
+            close_session = True
         try:
-            ids = [supplier.id for supplier in SupplierRepository(session).get_active_suppliers()]
+            ids = [
+                supplier.id
+                for supplier in SupplierRepository(session).get_active_suppliers(store_id=store_id)
+            ]
         finally:
-            session.close()
+            if close_session and session is not None:
+                session.close()
 
     for supplier_id in ids:
         scheduler.add_job(

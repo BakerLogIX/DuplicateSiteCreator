@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from time import perf_counter
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 
@@ -10,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from core.db.base import SessionLocal
 from core.db.repositories import ProductRepository, StoreRepository
+from core.metrics import get_collector
 from core.storegen.theme_manager import get_theme_path
 
 
@@ -62,6 +64,7 @@ def build_store(
     session = db or SessionLocal()
     created_session = db is None
     try:
+        collector = get_collector()
         store = StoreRepository(session).get_by_id(store_id)
         if not store:
             raise ValueError(f"Store with id {store_id} not found")
@@ -71,6 +74,7 @@ def build_store(
         for product in products:
             if not getattr(product, "currency", None):
                 product.currency = store.default_currency
+        started_at = perf_counter()
         products_by_category = _group_products_by_category(products)
         categories = [
             {
@@ -131,6 +135,9 @@ def build_store(
             )
             generated_paths[f"product:{product.id}"] = path
 
+        collector.increment("storegen.pages_generated", len(generated_paths), store_id=store_id)
+        collector.observe("storegen.products_rendered", len(products), store_id=store_id)
+        collector.observe("storegen.duration_seconds", perf_counter() - started_at, store_id=store_id)
         return generated_paths
     finally:
         if created_session:

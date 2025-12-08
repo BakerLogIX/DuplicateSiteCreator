@@ -8,6 +8,7 @@ from core.db.repositories import OrderItemRepository, OrderRepository
 from core.dropship.adapters import DummySupplierAdapter, SupplierAdapter
 from core.dropship.router import select_supplier
 from core.logging.logger import get_logger
+from core.metrics import get_collector
 from core.models.entities import Order
 
 try:  # pragma: no cover - optional dependency for scheduling
@@ -26,7 +27,7 @@ FAILED_STATUS = "failed"
 
 
 def process_pending_orders(
-    db=None, adapter: Optional[SupplierAdapter] = None
+    db=None, adapter: Optional[SupplierAdapter] = None, store_id: Optional[int] = None
 ) -> List[Order]:
     """Process pending orders by routing items to suppliers.
 
@@ -34,6 +35,7 @@ def process_pending_orders(
         db: Optional SQLAlchemy session. If omitted, a new session is created.
         adapter: Supplier adapter used to communicate with suppliers. Defaults
             to the :class:`DummySupplierAdapter`.
+        store_id: If provided, restrict processing to orders belonging to this store.
 
     Returns:
         A list of orders that were processed.
@@ -47,10 +49,13 @@ def process_pending_orders(
     order_repo = OrderRepository(db)
     order_item_repo = OrderItemRepository(db)
     adapter = adapter or DummySupplierAdapter()
+    collector = get_collector()
     processed_orders = []
 
     try:
-        pending_orders = order_repo.get_pending_orders()
+        pending_orders = order_repo.get_pending_orders(store_id=store_id)
+        for order in pending_orders:
+            collector.increment("orders.processed", 1, store_id=order.store_id)
         for order in pending_orders:
             order.status = PROCESSING_STATUS
             db.add(order)
@@ -92,6 +97,11 @@ def process_pending_orders(
             db.commit()
             db.refresh(order)
             processed_orders.append(order)
+
+            if order.status == FULFILLED_STATUS:
+                collector.increment("orders.fulfilled", 1, store_id=order.store_id)
+            elif order.status == FAILED_STATUS:
+                collector.increment("orders.failed", 1, store_id=order.store_id)
     finally:
         if close_session:
             db.close()
@@ -100,19 +110,26 @@ def process_pending_orders(
 
 
 def start_order_processing_scheduler(
-    interval_minutes: int = 5, scheduler: Optional["BackgroundScheduler"] = None
+    interval_minutes: int = 5,
+    scheduler: Optional["BackgroundScheduler"] = None,
+    store_id: Optional[int] = None,
 ) -> "BackgroundScheduler":
-    """Start a scheduler that periodically processes pending orders."""
+    """Start a scheduler that periodically processes pending orders.
+
+    If ``store_id`` is provided, only orders from that store are processed.
+    """
 
     if BackgroundScheduler is None:  # pragma: no cover - dependency guard
         raise ImportError("APScheduler is required to start the order scheduler.")
 
     scheduler = scheduler or BackgroundScheduler()
+    job_id = "process_pending_orders" if store_id is None else f"process_pending_orders_{store_id}"
     scheduler.add_job(
         process_pending_orders,
         "interval",
         minutes=interval_minutes,
-        id="process_pending_orders",
+        kwargs={"store_id": store_id},
+        id=job_id,
         replace_existing=True,
     )
     scheduler.start()

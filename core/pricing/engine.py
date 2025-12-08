@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from core.db.base import SessionLocal
 from core.db.repositories import PriceRuleRepository, ProductRepository, StoreRepository
 from core.logging.logger import get_logger
+from core.metrics import get_collector
 from core.pricing.demand_scoring import compute_demand_score
 from core.pricing.ml_plugin import PricingMLPlugin
 from core.pricing.rules import DemandRule, MarginRule
@@ -81,6 +82,7 @@ def run_pricing(
     session = db or SessionLocal()
     created_session = db is None
     try:
+        collector = get_collector()
         store = StoreRepository(session).get_by_id(store_id)
         if not store:
             raise ValueError(f"Store with id {store_id} not found")
@@ -98,8 +100,10 @@ def run_pricing(
             plugin.fit(ml_training_data)
 
         updated_products = []
+        total_uplift = Decimal("0")
         for product in products:
             margin_to_apply: Optional[float] = None
+            old_price = Decimal(str(product.price))
 
             if plugin and plugin.trained:
                 try:
@@ -114,6 +118,7 @@ def run_pricing(
 
             new_price = _apply_margin(Decimal(str(product.price)), margin_to_apply)
             product_repo.update(product, price=new_price)
+            total_uplift += new_price - old_price
             updated_products.append(product)
             LOGGER.debug(
                 "Priced product %s with margin %.2f -> %s",
@@ -122,6 +127,13 @@ def run_pricing(
                 new_price,
             )
 
+        collector.increment("pricing.products_processed", len(updated_products), store_id=store_id)
+        collector.observe("pricing.uplift_total", float(total_uplift), store_id=store_id)
+        collector.observe(
+            "pricing.uplift_average",
+            float(total_uplift) / len(updated_products) if updated_products else 0.0,
+            store_id=store_id,
+        )
         return updated_products
     finally:
         if created_session:

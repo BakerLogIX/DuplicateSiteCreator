@@ -104,5 +104,34 @@ class StoreManager:
             return None
         return self.store_repo.get_by_id(store_id)
 
+    def update_store_settings(
+        self,
+        store_id: int,
+        *,
+        name: Optional[str] = None,
+        theme: Optional[str] = None,
+        payment_provider: Optional[str] = None,
+        default_currency: Optional[str] = None,
+        timezone: Optional[str] = None,
+    ) -> Store:
+        """Update store-level settings and return the refreshed store."""
+
+        store = self.store_repo.get_by_id(store_id)
+        if not store:
+            raise ValueError(f"Store with id {store_id} not found")
+
+        updates = {
+            "name": name if name is not None else store.name,
+            "theme": theme if theme is not None else store.theme,
+            "payment_provider": (
+                payment_provider if payment_provider is not None else store.payment_provider
+            ),
+            "default_currency": (
+                default_currency if default_currency is not None else store.default_currency
+            ),
+            "timezone": timezone if timezone is not None else store.timezone,
+        }
+        return self.store_repo.update(store, **updates)
+
 
 __all__ = ["StoreManager"]

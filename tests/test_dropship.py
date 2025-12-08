@@ -109,3 +109,58 @@ def test_process_pending_orders_marks_failed_if_no_supplier(db_session: Session)
     refreshed_items = order_item_repo.get_by_order(order.id)
     assert refreshed_items[0].status == FAILED_STATUS
     assert refreshed_items[0].tracking_number is None
+
+
+def test_process_pending_orders_scopes_by_store(db_session: Session) -> None:
+    store_repo = StoreRepository(db_session)
+    product_repo = ProductRepository(db_session)
+    supplier_repo = SupplierRepository(db_session)
+    order_repo = OrderRepository(db_session)
+    order_item_repo = OrderItemRepository(db_session)
+
+    store_a = store_repo.create(name="Store A", theme="default", payment_provider=None)
+    store_b = store_repo.create(name="Store B", theme="default", payment_provider=None)
+
+    product_a = product_repo.create(store_id=store_a.id, name="Product A", price=25, currency="USD")
+    product_b = product_repo.create(store_id=store_b.id, name="Product B", price=30, currency="USD")
+    supplier_a = supplier_repo.create(store_id=store_a.id, name="Supplier A", active=True)
+
+    order_a = order_repo.create(store_id=store_a.id, total_amount=25, currency="USD")
+    order_item_repo.create(
+        order_id=order_a.id,
+        product_id=product_a.id,
+        supplier_id=None,
+        variant_id=None,
+        quantity=1,
+        unit_price=25,
+        total_price=25,
+    )
+
+    order_b = order_repo.create(store_id=store_b.id, total_amount=30, currency="USD")
+    order_item_repo.create(
+        order_id=order_b.id,
+        product_id=product_b.id,
+        supplier_id=None,
+        variant_id=None,
+        quantity=1,
+        unit_price=30,
+        total_price=30,
+    )
+
+    processed = process_pending_orders(
+        db_session, adapter=DummySupplierAdapter(), store_id=store_a.id
+    )
+
+    assert {o.id for o in processed} == {order_a.id}
+
+    refreshed_a = order_repo.get_by_id(order_a.id)
+    refreshed_b = order_repo.get_by_id(order_b.id)
+    assert refreshed_a.status == FULFILLED_STATUS
+    assert refreshed_b.status == "pending"
+
+    items_a = order_item_repo.get_by_order(order_a.id)
+    items_b = order_item_repo.get_by_order(order_b.id)
+    assert items_a[0].supplier_id == supplier_a.id
+    assert items_a[0].tracking_number
+    assert items_b[0].status == "pending"
+    assert items_b[0].supplier_id is None

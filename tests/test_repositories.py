@@ -108,6 +108,24 @@ def test_variant_and_supplier_relationships(db_session: Session) -> None:
 
 
 
+def test_product_lookup_by_sku_is_store_scoped(db_session: Session) -> None:
+    store_repo = StoreRepository(db_session)
+    product_repo = ProductRepository(db_session)
+
+    store_a = store_repo.create(name="Store A", theme="default", payment_provider=None)
+    store_b = store_repo.create(name="Store B", theme="default", payment_provider=None)
+
+    product = product_repo.create(
+        store_id=store_a.id, name="Product", price=20, currency="USD", sku="SKU-123"
+    )
+    product_repo.create(store_id=store_b.id, name="Other", price=30, currency="USD", sku="SKU-456")
+
+    assert product_repo.get_by_sku("SKU-123", store_id=store_a.id).id == product.id
+    assert product_repo.get_by_sku("SKU-123", store_id=store_b.id) is None
+    # Backward-compatible lookup without store_id still returns the matching SKU.
+    assert product_repo.get_by_sku("SKU-123").id == product.id
+
+
 def test_orders_and_transactions(db_session: Session) -> None:
     store_repo = StoreRepository(db_session)
     product_repo = ProductRepository(db_session)

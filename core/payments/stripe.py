@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional
 import requests
 
 from core.logging.logger import get_logger
+from core.metrics import get_collector
 from core.payments.base import PaymentGateway, PaymentResult
 
 LOGGER = get_logger(__name__)
@@ -67,9 +68,17 @@ class StripeGateway(PaymentGateway):
 
         result = self._post("/v1/checkout/sessions", payload)
         if result:
+            collector = get_collector()
+            collector.increment(
+                "payments.checkout_success" if result.success else "payments.checkout_failed",
+                1,
+                store_id=getattr(order, "store_id", None),
+            )
             return result
 
         simulated_id = f"cs_test_{getattr(order, 'id', 'unknown')}"
+        collector = get_collector()
+        collector.increment("payments.checkout_success", 1, store_id=getattr(order, "store_id", None))
         return PaymentResult(success=True, payment_id=simulated_id, status="created")
 
     def handle_webhook(self, payload: Dict[str, Any]) -> PaymentResult:
@@ -87,8 +96,15 @@ class StripeGateway(PaymentGateway):
 
         result = self._post("/v1/refunds", payload)
         if result:
+            collector = get_collector()
+            collector.increment(
+                "payments.refund_success" if result.success else "payments.refund_failed",
+                1,
+                store_id=None,
+            )
             return result
 
+        get_collector().increment("payments.refund_success", 1, store_id=None)
         return PaymentResult(success=True, payment_id=payment_id, status="refunded")
 
 

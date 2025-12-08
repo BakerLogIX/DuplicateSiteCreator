@@ -38,17 +38,18 @@ class DuplicateSiteCreatorApp(tk.Tk):
         self.title("Duplicate Site Creator")
         self.geometry("960x720")
 
-        # Instantiate controllers shared across views.
-        self.controllers: Dict[str, object] = {
-            "dashboard": DashboardController(),
-            "scraper": ScraperController(),
-            "products": ProductsController(),
-            "pricing": PricingController(),
-            "orders": OrdersController(),
-            "settings": SettingsController(),
-        }
         self.store_manager = store_manager or StoreManager()
         self.store_id = store_id or self.store_manager.get_current_store_id()
+
+        # Instantiate controllers shared across views.
+        self.controllers: Dict[str, object] = {
+            "dashboard": DashboardController(store_manager=self.store_manager),
+            "scraper": ScraperController(),
+            "products": ProductsController(store_manager=self.store_manager),
+            "pricing": PricingController(),
+            "orders": OrdersController(store_manager=self.store_manager),
+            "settings": SettingsController(store_manager=self.store_manager),
+        }
 
         self._create_widgets()
         self._populate_dashboard()
@@ -175,6 +176,7 @@ class DuplicateSiteCreatorApp(tk.Tk):
         self.orders_view.set_store(store_id)
         self.scraper_view.set_store(store_id)
         self.pricing_view.set_store(store_id)
+        self.settings_view.set_store(store_id)
 
 
 __all__ = ["DuplicateSiteCreatorApp"]

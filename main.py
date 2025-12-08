@@ -53,7 +53,7 @@ def bootstrap_application(
     schedulers = {}
     if enable_schedulers:
         try:
-            schedulers["orders"] = start_order_processing_scheduler()
+            schedulers["orders"] = start_order_processing_scheduler(store_id=store_id)
             LOGGER.info("Order processing scheduler started.")
         except ImportError:
             LOGGER.warning(
@@ -61,7 +61,7 @@ def bootstrap_application(
             )
 
         try:
-            schedulers["inventory"] = start_inventory_sync_scheduler()
+            schedulers["inventory"] = start_inventory_sync_scheduler(store_id=store_id)
             LOGGER.info("Inventory sync scheduler started.")
         except ImportError:
             LOGGER.warning(
